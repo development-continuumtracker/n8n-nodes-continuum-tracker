@@ -1,17 +1,24 @@
 import type {
 	IAuthenticateGeneric,
+	Icon,
 	ICredentialTestRequest,
 	ICredentialType,
 	INodeProperties,
 } from 'n8n-workflow';
+import { CONTINUUM_TRACKER_API_BASE_URL } from '../nodes/ContinuumTracker/shared/constants';
 
 export class ContinuumTrackerApi implements ICredentialType {
 	name = 'continuumTrackerApi';
 
 	displayName = 'Continuum Tracker API';
 
-	// Link to your community node's README
-	documentationUrl = 'https://github.com/org/-continuum-tracker?tab=readme-ov-file#credentials';
+	icon: Icon = {
+		light: 'file:../nodes/ContinuumTracker/continuumTracker.svg',
+		dark: 'file:../nodes/ContinuumTracker/continuumTracker.dark.svg',
+	};
+
+	documentationUrl =
+		'https://github.com/development-continuumtracker/n8n-nodes-continuum-tracker?tab=readme-ov-file#credentials';
 
 	properties: INodeProperties[] = [
 		{
@@ -21,6 +28,7 @@ export class ContinuumTrackerApi implements ICredentialType {
 			typeOptions: { password: true },
 			required: true,
 			default: '',
+			description: 'Generate or rotate a key in the web app at /settings/access',
 		},
 	];
 
@@ -35,8 +43,8 @@ export class ContinuumTrackerApi implements ICredentialType {
 
 	test: ICredentialTestRequest = {
 		request: {
-			baseURL: 'https://app.continuumtracker.com/api/v1',
-			url: '/v1/user',
+			baseURL: CONTINUUM_TRACKER_API_BASE_URL,
+			url: '/v1/me',
 		},
 	};
 }

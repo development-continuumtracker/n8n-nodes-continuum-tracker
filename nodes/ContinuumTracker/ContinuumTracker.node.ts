@@ -1,6 +1,10 @@
 import { NodeConnectionTypes, type INodeType, type INodeTypeDescription } from 'n8n-workflow';
-import { userDescription } from './resources/user';
-import { companyDescription } from './resources/company';
+import { feedbackDescription } from './resources/feedback';
+import { signalDescription } from './resources/signal';
+import { meDescription } from './resources/me';
+import { projectIdProperty } from './shared/projectId';
+import { CONTINUUM_TRACKER_API_BASE_URL } from './shared/constants';
+import { getProjects } from './methods/loadOptions';
 
 export class ContinuumTracker implements INodeType {
 	description: INodeTypeDescription = {
@@ -19,7 +23,7 @@ export class ContinuumTracker implements INodeType {
 		outputs: [NodeConnectionTypes.Main],
 		credentials: [{ name: 'continuumTrackerApi', required: true }],
 		requestDefaults: {
-			baseURL: 'https://app.continuumtracker.com/api/v1',
+			baseURL: CONTINUUM_TRACKER_API_BASE_URL,
 			headers: {
 				Accept: 'application/json',
 				'Content-Type': 'application/json',
@@ -32,19 +36,22 @@ export class ContinuumTracker implements INodeType {
 				type: 'options',
 				noDataExpression: true,
 				options: [
-					{
-						name: 'User',
-						value: 'user',
-					},
-					{
-						name: 'Company',
-						value: 'company',
-					},
+					{ name: 'Feedback', value: 'feedback' },
+					{ name: 'Me', value: 'me' },
+					{ name: 'Signal', value: 'signal' },
 				],
-				default: 'user',
+				default: 'feedback',
 			},
-			...userDescription,
-			...companyDescription,
+			projectIdProperty,
+			...feedbackDescription,
+			...signalDescription,
+			...meDescription,
 		],
+	};
+
+	methods = {
+		loadOptions: {
+			getProjects,
+		},
 	};
 }

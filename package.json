@@ -1,19 +1,19 @@
 {
   "name": "n8n-nodes-continuum-tracker",
   "version": "0.1.0",
-  "description": "",
+  "description": "n8n community node for Continuum Tracker — manage feedbacks, signals and projects via the public API",
   "license": "MIT",
   "homepage": "",
   "keywords": ["n8n-community-node-package"],
   "author": { "name": "Standa Horvath", "email": "standa@tonakodi.cz" },
   "repository": {
     "type": "git",
-    "url": "https://github.com/<...>/n8n-nodes-<...>.git"
+    "url": "https://github.com/development-continuumtracker/n8n-nodes-continuum-tracker.git"
   },
   "scripts": {
     "build": "n8n-node build",
     "build:watch": "tsc --watch",
-    "dev": "n8n-node dev",
+    "dev": "n8n-node dev --external-n8n",
     "lint": "n8n-node lint",
     "lint:fix": "n8n-node lint --fix",
     "release": "n8n-node release",

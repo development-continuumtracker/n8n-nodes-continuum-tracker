@@ -1,0 +1,5985 @@
+openapi: 3.1.0
+info:
+  title: Continuum Tracker — Public API
+  version: 1.0.0
+  description: 'Public REST API for Continuum Tracker.
+
+
+    Authenticate every request with `Authorization: Bearer <api_key>`. Generate or
+    rotate a key in the web app at `/settings/access`.
+
+
+    Rate limits are per-key (in-memory, slowapi). When a limit is hit the server returns
+    HTTP 429 with a `retry_after` (seconds) field in the body and a matching `Retry-After`
+    header.
+
+
+    All listing endpoints share the same envelope: `{ items: [...], pagination: {
+    total, page, limit, total_pages } }`.'
+  contact:
+    name: Continuum Tracker
+    url: https://www.continuumtracker.com
+paths:
+  /v1/projects:
+    get:
+      tags:
+      - Project Routes
+      summary: Get Projects
+      description: Get user's projects.
+      operationId: get_projects_v1_projects_get
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Page number
+          default: 1
+          title: Page
+        description: Page number
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Items per page
+          default: 10
+          title: Limit
+        description: Items per page
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include archived (soft-deleted) projects
+          default: false
+          title: Include Archived
+        description: Include archived (soft-deleted) projects
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProjectListResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+  /v1/projects/{projectId}/feedbacks:
+    get:
+      tags:
+      - Feedback Routes
+      summary: Get Feedbacks
+      description: Get feedbacks for project.
+      operationId: get_feedbacks_v1_projects__projectId__feedbacks_get
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Page number
+          default: 1
+          title: Page
+        description: Page number
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 1000
+          minimum: 1
+          description: Items per page
+          default: 10
+          title: Limit
+        description: Items per page
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search query (filters by name or feedback_original)
+          title: Search
+        description: Search query (filters by name or feedback_original)
+      - name: sort_by
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Sort by field (created_at, name, status)
+          title: Sort By
+        description: Sort by field (created_at, name, status)
+      - name: sort_dir
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Sort direction (asc, desc)
+          title: Sort Dir
+        description: Sort direction (asc, desc)
+      - name: include_archived
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: Include archived (soft-deleted) feedbacks. When true, archived
+            rows are returned at the bottom.
+          default: false
+          title: Include Archived
+        description: Include archived (soft-deleted) feedbacks. When true, archived
+          rows are returned at the bottom.
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackListResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - Feedback Routes
+      summary: Archive Feedbacks Bulk
+      description: 'Bulk archive (soft-delete) feedbacks by ID.
+
+
+        Request body is an **array of objects**: ``[{"id": "uuid"}, ...]``.
+
+        Returns 200 if at least one item was archived; 422 if the list is empty or
+        all failed.
+
+        Already-archived entries are returned in ``failed`` with code ``ALREADY_ARCHIVED``.'
+      operationId: archive_feedbacks_bulk_v1_projects__projectId__feedbacks_delete
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/FeedbackBulkArchiveItemApi'
+              title: Items
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackBulkArchiveResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Feedback Routes
+      summary: Create Feedback
+      description: "Create feedback for project.\n\nAccepts either a single ``FeedbackCreateRequestApi``\
+        \ object **or** a JSON\narray of them for bulk creation.\n\n* **Single object**\
+        \ → returns ``FeedbackResponseApi`` with HTTP 201.\n* **Array** → returns\
+        \ ``FeedbackBulkCreateResponseApi`` with HTTP 201 if\n  at least one item\
+        \ succeeded, or HTTP 422 if all items failed."
+      operationId: create_feedback_v1_projects__projectId__feedbacks_post
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                oneOf:
+                - $ref: '#/components/schemas/FeedbackResponseApi'
+                - $ref: '#/components/schemas/FeedbackBulkCreateResponseApi'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+      requestBody:
+        required: true
+        description: Either a single feedback object **or** an array for bulk import.
+          Bulk mode returns a per-item result set.
+        content:
+          application/json:
+            schema:
+              oneOf:
+              - $ref: '#/components/schemas/FeedbackCreateRequestApi'
+              - type: array
+                items:
+                  $ref: '#/components/schemas/FeedbackCreateRequestApi'
+      security:
+      - bearerAuth: []
+  /v1/projects/{projectId}/feedbacks/{feedbackId}:
+    get:
+      tags:
+      - Feedback Routes
+      summary: Get Feedback
+      description: Get feedback by id. Pass include=painpoint to embed related painpoints.
+      operationId: get_feedback_v1_projects__projectId__feedbacks__feedbackId__get
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: feedbackId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Feedbackid
+      - name: include
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: 'Comma-separated relations to include. Supported: painpoint'
+          title: Include
+        description: 'Comma-separated relations to include. Supported: painpoint'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                anyOf:
+                - $ref: '#/components/schemas/FeedbackWithPainpointsResponseApi'
+                - $ref: '#/components/schemas/FeedbackResponseApi'
+                title: Response Get Feedback V1 Projects  Projectid  Feedbacks  Feedbackid  Get
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - Feedback Routes
+      summary: Update Feedback
+      description: Update feedback. Returns 409 ``archived`` if the feedback is archived.
+      operationId: update_feedback_v1_projects__projectId__feedbacks__feedbackId__put
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: feedbackId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Feedbackid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackUpdateRequestApi'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - Feedback Routes
+      summary: Archive Feedback
+      description: Archive (soft-delete) feedback. Returns 409 if already archived.
+      operationId: archive_feedback_v1_projects__projectId__feedbacks__feedbackId__delete
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: feedbackId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Feedbackid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackDeleteResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+  /v1/projects/{projectId}/signals:
+    get:
+      tags:
+      - Signal Routes
+      summary: Get Signals
+      description: Get signals for project (paginated). Optionally filter by category
+        and/or is_saved.
+      operationId: get_signals_v1_projects__projectId__signals_get
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          minimum: 1
+          description: Page number
+          default: 1
+          title: Page
+        description: Page number
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          maximum: 100
+          minimum: 1
+          description: Items per page
+          default: 10
+          title: Limit
+        description: Items per page
+      - name: search
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Search query (name, signal_original)
+          title: Search
+        description: Search query (name, signal_original)
+      - name: sort_by
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Sort by field (created_at, name)
+          title: Sort By
+        description: Sort by field (created_at, name)
+      - name: sort_dir
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          description: Sort direction (asc, desc)
+          title: Sort Dir
+        description: Sort direction (asc, desc)
+      - name: category
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: array
+            items:
+              $ref: '#/components/schemas/SignalCategoryEnum'
+          - type: 'null'
+          description: Filter by signal category (repeat param for multiple)
+          title: Category
+        description: Filter by signal category (repeat param for multiple)
+      - name: is_saved
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          description: If true, return only signals saved by current user
+          title: Is Saved
+        description: If true, return only signals saved by current user
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalListResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    post:
+      tags:
+      - Signal Routes
+      summary: Create Signal
+      description: Create manual signal (category=ManualPainPoint) with optional linked
+        feedback.
+      operationId: create_signal_v1_projects__projectId__signals_post
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignalCreateRequestApi'
+      responses:
+        '201':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalCreateResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+  /v1/projects/{projectId}/signals/{signalId}:
+    get:
+      tags:
+      - Signal Routes
+      summary: Get Signal
+      description: Get signal by id.
+      operationId: get_signal_v1_projects__projectId__signals__signalId__get
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: signalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Signalid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    put:
+      tags:
+      - Signal Routes
+      summary: Update Signal
+      description: Update signal.
+      operationId: update_signal_v1_projects__projectId__signals__signalId__put
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: signalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Signalid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignalUpdateRequestApi'
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+    delete:
+      tags:
+      - Signal Routes
+      summary: Delete Signal
+      description: Soft delete signal.
+      operationId: delete_signal_v1_projects__projectId__signals__signalId__delete
+      parameters:
+      - name: projectId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Projectid
+      - name: signalId
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+          title: Signalid
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalDeleteResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+  /v1/me:
+    get:
+      tags:
+      - Me
+      summary: Get Me
+      description: Current user (works with API key or session email).
+      operationId: get_me_v1_me_get
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MeResponseApi'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+      security:
+      - bearerAuth: []
+components:
+  schemas:
+    AdminGrantListItemApi:
+      properties:
+        id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Id
+        kind:
+          type: string
+          title: Kind
+        amount:
+          type: integer
+          title: Amount
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        expires_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expires At
+        period_start:
+          type: string
+          title: Period Start
+        period_end:
+          type: string
+          title: Period End
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+        granted_by_user:
+          anyOf:
+          - $ref: '#/components/schemas/GrantedByUserApi'
+          - type: 'null'
+      type: object
+      required:
+      - kind
+      - amount
+      - period_start
+      - period_end
+      title: AdminGrantListItemApi
+    AdminGrantResponseApi:
+      properties:
+        grant:
+          $ref: '#/components/schemas/LedgerEntryApi'
+        org_credits:
+          $ref: '#/components/schemas/OrgCreditsApi'
+      type: object
+      required:
+      - grant
+      - org_credits
+      title: AdminGrantResponseApi
+    AdminGrantsListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/AdminGrantListItemApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/PaginationInfoApi'
+      type: object
+      required:
+      - items
+      - pagination
+      title: AdminGrantsListResponseApi
+    ApiKeyResponseApi:
+      properties:
+        api_key:
+          type: string
+          title: Api Key
+          description: The freshly generated API key (plaintext, shown once)
+        created_at:
+          type: string
+          title: Created At
+          description: When the key was generated
+      type: object
+      required:
+      - api_key
+      - created_at
+      title: ApiKeyResponseApi
+      description: 'Returned once on generate / regenerate — the only time the full
+        key is
+
+        surfaced to the client.'
+    BackendUserResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: User UUID
+        email:
+          type: string
+          title: Email
+          description: User email address
+        name:
+          type: string
+          title: Name
+          description: User full name
+        role:
+          type: string
+          title: Role
+          description: User role in the system (converted from enum)
+        image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image
+          description: User profile image URL
+        email_verified:
+          type: boolean
+          title: Email Verified
+          description: Email verification status
+        given_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Given Name
+          description: User's given/first name
+        family_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Family Name
+          description: User's family/last name
+        locale:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Locale
+          description: User's locale/language preference
+        hd:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hd
+          description: Hosted domain for Google Workspace users
+        newsletter_subscribed:
+          type: boolean
+          title: Newsletter Subscribed
+          description: Newsletter subscription flag
+          default: false
+        accepted_tc_version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Accepted Tc Version
+          description: Latest accepted T&C version
+        participation_in_studies:
+          type: boolean
+          title: Participation In Studies
+          description: Participation in studies flag
+          default: false
+        last_login_at:
+          type: string
+          title: Last Login At
+          description: Last login timestamp
+        created_at:
+          type: string
+          title: Created At
+          description: Account creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Account update timestamp
+        api_key:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Api Key
+          description: API key for the user
+        company_analyses:
+          items:
+            $ref: '#/components/schemas/UserCompanyAnalysisApi'
+          type: array
+          title: Company Analyses
+          description: Company analysis history
+        organizations:
+          items:
+            $ref: '#/components/schemas/OrgSummaryApi'
+          type: array
+          title: Organizations
+          description: Organizations the user is a member of
+        default_organization_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Default Organization Id
+          description: ID of the user's default (owner) organization
+      type: object
+      required:
+      - id
+      - email
+      - name
+      - role
+      - email_verified
+      - last_login_at
+      - created_at
+      - updated_at
+      title: BackendUserResponseApi
+      description: Complete backend user response with all fields.
+    BiasIdleFlushApi:
+      properties:
+        exploration_seconds:
+          type: integer
+          maximum: 86400.0
+          minimum: 1.0
+          title: Exploration Seconds
+        conversation_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Conversation Id
+      type: object
+      required:
+      - exploration_seconds
+      title: BiasIdleFlushApi
+    BillingDetailsUpdateRequestApi:
+      properties:
+        company_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Name
+          description: Company name
+        vat_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vat Id
+          description: VAT ID
+        street:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Street
+          description: Street line 1
+        street_line2:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Street Line2
+          description: Street line 2
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+          description: City
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+          description: State/region
+        zip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zip
+          description: ZIP/postal code
+        country:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country
+          description: ISO-3166-1 alpha-2
+        billing_contact_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Billing Contact Name
+          description: Billing contact name
+      type: object
+      title: BillingDetailsUpdateRequestApi
+      description: Request model for updating org billing details.
+    BlogCategoryApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          additionalProperties:
+            type: string
+          type: object
+          title: Name
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        sort_order:
+          type: integer
+          title: Sort Order
+          default: 0
+      type: object
+      required:
+      - id
+      - name
+      title: BlogCategoryApi
+    BlogCategoryCreateApi:
+      properties:
+        name:
+          additionalProperties:
+            type: string
+          type: object
+          title: Name
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        sort_order:
+          type: integer
+          title: Sort Order
+          default: 0
+      type: object
+      required:
+      - name
+      title: BlogCategoryCreateApi
+    BlogCategoryListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/BlogCategoryApi'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: BlogCategoryListResponseApi
+    BlogCategoryUpdateApi:
+      properties:
+        name:
+          additionalProperties:
+            type: string
+          type: object
+          title: Name
+        color:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Color
+        sort_order:
+          type: integer
+          title: Sort Order
+          default: 0
+      type: object
+      required:
+      - name
+      title: BlogCategoryUpdateApi
+    BlogContentExtraction:
+      properties:
+        published_date:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published Date
+          description: Publication date of the blog post, or the Last Updated date
+            - in ISO format YYYY-MM-DD
+        product_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Name
+          description: Name of the product discussed in the blog post
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+          description: Description of the product and its features
+        target_persona:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Target Persona
+          description: Target user persona for the product
+        user_story:
+          anyOf:
+          - $ref: '#/components/schemas/UserStory'
+          - type: 'null'
+          description: Main user story - cannot be null if the product name and description
+            are provided
+      type: object
+      title: BlogContentExtraction
+      description: LLM-structured output for blog content extraction.
+    BlogContentModel:
+      properties:
+        url:
+          type: string
+          title: Url
+          description: URL of the blog post
+        blog_content:
+          $ref: '#/components/schemas/BlogContentExtraction'
+          description: Extracted content from the blog post
+      type: object
+      required:
+      - url
+      - blog_content
+      title: BlogContentModel
+      description: Model for extracted blog content.
+    BlogPostAuthorApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      type: object
+      required:
+      - id
+      title: BlogPostAuthorApi
+    BlogPostCreateApi:
+      properties:
+        title:
+          additionalProperties:
+            type: string
+          type: object
+          title: Title
+        description:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Description
+        content:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Content
+        image_url:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Url
+        status:
+          type: string
+          title: Status
+          default: draft
+        reading_time_minutes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reading Time Minutes
+        category_ids:
+          anyOf:
+          - items:
+              type: string
+              format: uuid
+            type: array
+          - type: 'null'
+          title: Category Ids
+        author_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Author Id
+      type: object
+      required:
+      - title
+      title: BlogPostCreateApi
+    BlogPostDetailResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        title:
+          additionalProperties:
+            type: string
+          type: object
+          title: Title
+        description:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Description
+        image_url:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Url
+        status:
+          type: string
+          title: Status
+        reading_time_minutes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reading Time Minutes
+        published_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published At
+        author:
+          anyOf:
+          - $ref: '#/components/schemas/BlogPostAuthorApi'
+          - type: 'null'
+        categories:
+          items:
+            $ref: '#/components/schemas/BlogCategoryApi'
+          type: array
+          title: Categories
+          default: []
+        created_at:
+          type: string
+          title: Created At
+        updated_at:
+          type: string
+          title: Updated At
+        content:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Content
+      type: object
+      required:
+      - id
+      - title
+      - status
+      - created_at
+      - updated_at
+      title: BlogPostDetailResponseApi
+    BlogPostListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/BlogPostResponseApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/api__routers__blog_posts__models__PaginationInfo'
+      type: object
+      required:
+      - items
+      - pagination
+      title: BlogPostListResponseApi
+    BlogPostResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        title:
+          additionalProperties:
+            type: string
+          type: object
+          title: Title
+        description:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Description
+        image_url:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Url
+        status:
+          type: string
+          title: Status
+        reading_time_minutes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reading Time Minutes
+        published_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Published At
+        author:
+          anyOf:
+          - $ref: '#/components/schemas/BlogPostAuthorApi'
+          - type: 'null'
+        categories:
+          items:
+            $ref: '#/components/schemas/BlogCategoryApi'
+          type: array
+          title: Categories
+          default: []
+        created_at:
+          type: string
+          title: Created At
+        updated_at:
+          type: string
+          title: Updated At
+      type: object
+      required:
+      - id
+      - title
+      - status
+      - created_at
+      - updated_at
+      title: BlogPostResponseApi
+    BlogPostUpdateApi:
+      properties:
+        title:
+          additionalProperties:
+            type: string
+          type: object
+          title: Title
+        description:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Description
+        content:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Content
+        image_url:
+          anyOf:
+          - additionalProperties:
+              type: string
+            type: object
+          - type: 'null'
+          title: Image Url
+        status:
+          type: string
+          title: Status
+          default: draft
+        reading_time_minutes:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Reading Time Minutes
+        category_ids:
+          anyOf:
+          - items:
+              type: string
+              format: uuid
+            type: array
+          - type: 'null'
+          title: Category Ids
+        author_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Author Id
+      type: object
+      required:
+      - title
+      title: BlogPostUpdateApi
+    BookDemoCreateApi:
+      properties:
+        email:
+          type: string
+          title: Email
+        first_name:
+          type: string
+          title: First Name
+        last_name:
+          type: string
+          title: Last Name
+        company:
+          type: string
+          title: Company
+        newsletter_subscribed:
+          type: boolean
+          title: Newsletter Subscribed
+          default: false
+      type: object
+      required:
+      - email
+      - first_name
+      - last_name
+      - company
+      title: BookDemoCreateApi
+    BookDemoItemApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          title: Email
+        first_name:
+          type: string
+          title: First Name
+        last_name:
+          type: string
+          title: Last Name
+        company:
+          type: string
+          title: Company
+        agreed_to_terms_of_service_at:
+          type: string
+          title: Agreed To Terms Of Service At
+        agreed_to_privacy_policy_at:
+          type: string
+          title: Agreed To Privacy Policy At
+        newsletter_subscribed_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Newsletter Subscribed At
+        created_at:
+          type: string
+          title: Created At
+        updated_at:
+          type: string
+          title: Updated At
+      type: object
+      required:
+      - id
+      - email
+      - first_name
+      - last_name
+      - company
+      - agreed_to_terms_of_service_at
+      - agreed_to_privacy_policy_at
+      - created_at
+      - updated_at
+      title: BookDemoItemApi
+    BookDemoListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/BookDemoItemApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/api__routers__blog_posts__models__PaginationInfo'
+      type: object
+      required:
+      - items
+      - pagination
+      title: BookDemoListResponseApi
+    BookDemoResponseApi:
+      properties:
+        message:
+          type: string
+          title: Message
+          default: ok
+      type: object
+      title: BookDemoResponseApi
+    CategoryEnum:
+      type: string
+      enum:
+      - Product
+      - Strategic Acquisitions
+      - Market Expansion
+      - Reorganizations
+      - Financial Optimizations
+      - Marketing Strategies
+      - Other
+      title: CategoryEnum
+    ChangePlanRequestApi:
+      properties:
+        plan_slug:
+          type: string
+          title: Plan Slug
+          description: 'Target plan slug: tier1 or tier2'
+      type: object
+      required:
+      - plan_slug
+      title: ChangePlanRequestApi
+    ChatAiModelApi:
+      properties:
+        id:
+          type: string
+          title: Id
+        label:
+          type: string
+          title: Label
+        provider:
+          type: string
+          title: Provider
+        default:
+          type: boolean
+          title: Default
+          default: false
+      type: object
+      required:
+      - id
+      - label
+      - provider
+      title: ChatAiModelApi
+    ChatTypeCountApi:
+      properties:
+        user_messages_count:
+          type: integer
+          title: User Messages Count
+          description: Number of user messages in this chat type
+          default: 0
+      type: object
+      title: ChatTypeCountApi
+      description: Per-conversation-type counts for a signal's progress.
+    CompanyCrawlJobItemApi:
+      properties:
+        job_id:
+          type: string
+          title: Job Id
+          description: Job UUID
+        status:
+          type: string
+          title: Status
+          description: Current job status
+        company_url:
+          type: string
+          title: Company Url
+          description: Company URL being processed
+        created_at:
+          type: string
+          title: Created At
+          description: Job creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        progress:
+          $ref: '#/components/schemas/ProgressStatsApi'
+          description: Current progress statistics
+        company:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Company
+          description: Company data (available when completed)
+        message:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Message
+          description: Status message
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+          description: Error message (if failed)
+      type: object
+      required:
+      - job_id
+      - status
+      - company_url
+      - created_at
+      - updated_at
+      - progress
+      title: CompanyCrawlJobItemApi
+      description: Single job item in the job list response.
+    CompanyCrawlJobsResponseApi:
+      properties:
+        jobs:
+          items:
+            $ref: '#/components/schemas/CompanyCrawlJobItemApi'
+          type: array
+          title: Jobs
+          description: List of jobs, newest first
+      type: object
+      required:
+      - jobs
+      title: CompanyCrawlJobsResponseApi
+      description: 'Response model for GET job list: states and statistics for all
+        jobs.'
+    CompanyCrawlRequestApi:
+      properties:
+        companyUrl:
+          type: string
+          title: Companyurl
+          description: Company website URL to crawl
+        urlLimit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Urllimit
+          description: Maximum number of pages to crawl
+          default: 200
+        urlExtraLimit:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Urlextralimit
+          description: Maximum number of extra pages to crawl for desired paths
+          default: 400
+      type: object
+      required:
+      - companyUrl
+      title: CompanyCrawlRequestApi
+      description: Request model for company blog crawl.
+    CompanyCrawlStartResponseApi:
+      properties:
+        job_id:
+          type: string
+          title: Job Id
+          description: Job UUID for tracking the processing
+        status:
+          type: string
+          title: Status
+          description: Initial job status
+        message:
+          type: string
+          title: Message
+          description: Status message
+      type: object
+      required:
+      - job_id
+      - status
+      - message
+      title: CompanyCrawlStartResponseApi
+      description: Response model for starting company blog crawl.
+    CompanyDetailResponseApi:
+      properties:
+        company:
+          additionalProperties: true
+          type: object
+          title: Company
+          description: Company from Company.to_dict()
+        products:
+          items:
+            $ref: '#/components/schemas/ProductDetailApi'
+          type: array
+          title: Products
+          description: Products with nested needs
+      type: object
+      required:
+      - company
+      - products
+      title: CompanyDetailResponseApi
+      description: Response model for GET company detail (company + products + needs).
+    CompanyInProductNeedResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Company UUID
+        name:
+          type: string
+          title: Name
+          description: Company name
+        ticker:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticker
+          description: Stock ticker
+        description:
+          type: string
+          title: Description
+          description: Company description
+        sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector
+          description: Company sector
+        website:
+          type: string
+          title: Website
+          description: Company website URL
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - website
+      title: CompanyInProductNeedResponseApi
+      description: Minimal company info embedded in product need response (include=company).
+    CompanyInfoApi:
+      properties:
+        ticker:
+          type: string
+          title: Ticker
+          description: Company ticker symbol
+        name:
+          type: string
+          title: Name
+          description: Company name
+        sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector
+          description: Sector of the company
+        website:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Website
+          description: Website URL of the company
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+          description: Mission statement of the company
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+          description: Vision statement of the company
+        blog_content:
+          anyOf:
+          - items:
+              $ref: '#/components/schemas/BlogContentModel'
+            type: array
+          - type: 'null'
+          title: Blog Content
+          description: List of blog content documents associated with the company
+      type: object
+      required:
+      - ticker
+      - name
+      title: CompanyInfoApi
+    CompanyListItemApi:
+      properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        ticker:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ticker
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector
+        website:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Website
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+        missionUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Missionurl
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+        visionUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Visionurl
+        assumedMission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assumedmission
+        assumedMissionSource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assumedmissionsource
+        assumedVision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assumedvision
+        assumedVisionSource:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Assumedvisionsource
+        marketData:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Marketdata
+        createdAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Createdat
+        updatedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Updatedat
+      type: object
+      title: CompanyListItemApi
+      description: Single company in list response (flat fields matching Company.to_dict()).
+    CompanyListResponseApi:
+      properties:
+        companies:
+          items:
+            $ref: '#/components/schemas/CompanyListItemApi'
+          type: array
+          title: Companies
+          description: List of companies
+        total:
+          type: integer
+          title: Total
+          description: Total number of companies
+        page:
+          type: integer
+          title: Page
+          description: Current page
+        limit:
+          type: integer
+          title: Limit
+          description: Items per page
+      type: object
+      required:
+      - companies
+      - total
+      - page
+      - limit
+      title: CompanyListResponseApi
+      description: Response model for GET company list (paginated).
+    ConnectedDataEventApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        signal_id:
+          type: string
+          format: uuid
+          title: Signal Id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        event_type:
+          type: string
+          title: Event Type
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+        created_at:
+          type: string
+          title: Created At
+      type: object
+      required:
+      - id
+      - signal_id
+      - user_id
+      - event_type
+      - created_at
+      title: ConnectedDataEventApi
+    ConnectedDataListApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ConnectedDataEventApi'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: ConnectedDataListApi
+    ConversationApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+        title:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Title
+        context:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Context
+        conversation_type:
+          type: string
+          title: Conversation Type
+        ai_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ai Model
+        created_at:
+          type: string
+          title: Created At
+        updated_at:
+          type: string
+          title: Updated At
+      type: object
+      required:
+      - id
+      - project_id
+      - created_by
+      - conversation_type
+      - created_at
+      - updated_at
+      title: ConversationApi
+    ConversationCreateApi:
+      properties:
+        context:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Context
+        conversation_type:
+          type: string
+          enum:
+          - general
+          - marketing
+          - market_traction
+          - user_problem
+          - market_size
+          - feature_look_and_feel
+          - business_model
+          - presentation
+          title: Conversation Type
+          default: general
+        ai_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ai Model
+      type: object
+      title: ConversationCreateApi
+    ConversationListApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ConversationApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+      type: object
+      required:
+      - items
+      - pagination
+      title: ConversationListApi
+    ConversationUpdateApi:
+      properties:
+        ai_model:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Ai Model
+      type: object
+      title: ConversationUpdateApi
+    CreateAdminGrantRequestApi:
+      properties:
+        amount:
+          type: integer
+          exclusiveMinimum: 0.0
+          title: Amount
+          description: Credits to grant (must be > 0)
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+          description: Optional admin note / ticket reference
+      type: object
+      required:
+      - amount
+      title: CreateAdminGrantRequestApi
+    CreateCheckoutRequestApi:
+      properties:
+        plan_slug:
+          type: string
+          title: Plan Slug
+          description: 'Plan to subscribe to: tier1 or tier2'
+        success_url:
+          type: string
+          title: Success Url
+          description: Redirect URL after successful checkout
+        cancel_url:
+          type: string
+          title: Cancel Url
+          description: Redirect URL if checkout is canceled
+      type: object
+      required:
+      - plan_slug
+      - success_url
+      - cancel_url
+      title: CreateCheckoutRequestApi
+    CreateCheckoutResponseApi:
+      properties:
+        checkout_url:
+          type: string
+          title: Checkout Url
+      type: object
+      required:
+      - checkout_url
+      title: CreateCheckoutResponseApi
+    CreateTopupRequestApi:
+      properties:
+        package_slug:
+          type: string
+          title: Package Slug
+        success_url:
+          type: string
+          title: Success Url
+        cancel_url:
+          type: string
+          title: Cancel Url
+      type: object
+      required:
+      - package_slug
+      - success_url
+      - cancel_url
+      title: CreateTopupRequestApi
+    CreateTopupResponseApi:
+      properties:
+        checkout_url:
+          type: string
+          title: Checkout Url
+      type: object
+      required:
+      - checkout_url
+      title: CreateTopupResponseApi
+    CreditCapApi:
+      properties:
+        used:
+          type: integer
+          title: Used
+        cap:
+          type: integer
+          title: Cap
+        percent:
+          type: number
+          title: Percent
+        blocked:
+          type: boolean
+          title: Blocked
+        reset_date:
+          type: string
+          title: Reset Date
+      type: object
+      required:
+      - used
+      - cap
+      - percent
+      - blocked
+      - reset_date
+      title: CreditCapApi
+    CreditHistoryResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/LedgerEntryApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/PaginationInfoApi'
+      type: object
+      required:
+      - items
+      - pagination
+      title: CreditHistoryResponseApi
+    DashboardStatsResponseApi:
+      properties:
+        feedbackCount:
+          type: integer
+          title: Feedbackcount
+          description: Count of feedbacks in the organization
+          default: 0
+        feedbackSourcesCount:
+          type: integer
+          title: Feedbacksourcescount
+          description: Number of feedback sources (fixed for now)
+          default: 1
+        signalsCount:
+          type: integer
+          title: Signalscount
+          description: Total count of signals in the organization
+          default: 0
+        signalsCompared:
+          type: integer
+          title: Signalscompared
+          description: Signals compared (fixed for now)
+          default: 0
+        finalsCompared:
+          type: integer
+          title: Finalscompared
+          description: Finals compared (fixed for now)
+          default: 0
+      type: object
+      title: DashboardStatsResponseApi
+      description: Response model for default organization dashboard stats.
+    DiscoveryProgressResponseApi:
+      properties:
+        phase:
+          type: string
+          title: Phase
+          description: 'Phase: not_started, discovering, processing, done'
+        progress:
+          type: integer
+          title: Progress
+          description: Progress percentage 0-100
+        total:
+          type: integer
+          title: Total
+          description: Total number of process_company jobs
+        completed:
+          type: integer
+          title: Completed
+          description: Number of completed (done+failed) jobs
+      type: object
+      required:
+      - phase
+      - progress
+      - total
+      - completed
+      title: DiscoveryProgressResponseApi
+      description: Response model for discovery job progress.
+    FeedbackBulkArchiveArchivedItemApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID that was archived
+      type: object
+      required:
+      - id
+      title: FeedbackBulkArchiveArchivedItemApi
+      description: Successfully archived item in a bulk archive response.
+    FeedbackBulkArchiveErrorApi:
+      properties:
+        code:
+          type: string
+          title: Code
+          description: Error code (e.g. ALREADY_ARCHIVED, NOT_FOUND, FORBIDDEN)
+        message:
+          type: string
+          title: Message
+          description: Human-readable error message
+        details:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Details
+          description: Additional error details
+      type: object
+      required:
+      - code
+      - message
+      title: FeedbackBulkArchiveErrorApi
+      description: Structured error for a failed bulk archive item.
+    FeedbackBulkArchiveFailedItemApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID that failed to archive
+        error:
+          $ref: '#/components/schemas/FeedbackBulkArchiveErrorApi'
+          description: Structured error
+      type: object
+      required:
+      - id
+      - error
+      title: FeedbackBulkArchiveFailedItemApi
+      description: Failed item in a bulk archive response.
+    FeedbackBulkArchiveItemApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID to archive
+      type: object
+      required:
+      - id
+      title: FeedbackBulkArchiveItemApi
+      description: Single item in a bulk archive request body.
+    FeedbackBulkArchiveResponseApi:
+      properties:
+        archived:
+          items:
+            $ref: '#/components/schemas/FeedbackBulkArchiveArchivedItemApi'
+          type: array
+          title: Archived
+          description: Feedbacks archived successfully
+        failed:
+          items:
+            $ref: '#/components/schemas/FeedbackBulkArchiveFailedItemApi'
+          type: array
+          title: Failed
+          description: Feedbacks that failed to archive
+      type: object
+      title: FeedbackBulkArchiveResponseApi
+      description: 'Response model for bulk feedback archive.
+
+
+        Returns 200 if at least one item was archived successfully.
+
+        ``archived`` contains objects with at least ``id``.
+
+        ``failed`` contains objects with ``id`` and a structured ``error`` (code ``ALREADY_ARCHIVED``
+        for idempotent retries).'
+    FeedbackDeleteResponseApi:
+      properties:
+        success:
+          type: boolean
+          title: Success
+          description: Whether the archive was successful
+        message:
+          type: string
+          title: Message
+          description: Status message
+      type: object
+      required:
+      - success
+      - message
+      title: FeedbackDeleteResponseApi
+      description: Response model for single feedback archive.
+    FeedbackInPainpointResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Name/title of the feedback entry
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: Author identifier
+        author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Type
+          description: 'Author type: Internal/External'
+        feedback_original:
+          type: string
+          title: Feedback Original
+          description: Original feedback text
+        feedback_processed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Processed
+          description: AI-processed/summarized version
+        source:
+          type: string
+          title: Source
+          description: Source of the feedback (e.g. manual, csv)
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Archive timestamp (soft-delete)
+      type: object
+      required:
+      - id
+      - feedback_original
+      - source
+      - created_at
+      title: FeedbackInPainpointResponseApi
+      description: Minimal feedback info embedded in a painpoint when include=feedback
+        is requested.
+    FeedbackInSignalCreateResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Feedback name
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: Feedback author
+        author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Type
+          description: Author type (Internal/External)
+        feedback_original:
+          type: string
+          title: Feedback Original
+          description: Original feedback text
+        source:
+          type: string
+          title: Source
+          description: Feedback source
+        status:
+          type: string
+          title: Status
+          description: Feedback status
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+      type: object
+      required:
+      - id
+      - feedback_original
+      - source
+      - status
+      - created_at
+      title: FeedbackInSignalCreateResponseApi
+      description: Feedback info returned when a signal is created with linked feedback.
+    FeedbackListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/FeedbackResponseApi'
+          type: array
+          title: Items
+          description: List of feedbacks
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: FeedbackListResponseApi
+      description: Response model for feedback list.
+    FeedbackMappingRequestApi:
+      properties:
+        rows:
+          items:
+            items:
+              type: string
+            type: array
+          type: array
+          maxItems: 5
+          minItems: 1
+          title: Rows
+          description: Sample rows from the feedback table (each row is a list of
+            strings, 1–5 rows)
+      type: object
+      required:
+      - rows
+      title: FeedbackMappingRequestApi
+      description: Request model for feedback column mapping.
+    FeedbackMappingResponseApi:
+      properties:
+        name:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Name
+          description: Column index for the feedback name/title, or null if not identified
+        date:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Date
+          description: Column index for the feedback date, or null if not identified
+        author:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Author
+          description: Column index for the feedback author/source, or null if not
+            identified
+        feedback:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Feedback
+          description: Column index for the feedback body text, or null if not identified
+        data_start:
+          type: integer
+          title: Data Start
+          description: Zero-based row index where actual data begins (first non-header
+            row)
+          default: 0
+      type: object
+      title: FeedbackMappingResponseApi
+      description: Response model for feedback column mapping.
+    FeedbackResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Name/title of the feedback
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: Author of the feedback
+        author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Type
+          description: 'Type of feedback author: Internal, External, or null'
+        status:
+          type: string
+          title: Status
+          description: Status of the feedback
+        feedback_original:
+          type: string
+          title: Feedback Original
+          description: Original feedback text
+        feedback_processed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Processed
+          description: Processed feedback
+        source:
+          type: string
+          title: Source
+          description: Source of the feedback
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+      type: object
+      required:
+      - id
+      - project_id
+      - status
+      - feedback_original
+      - source
+      - created_at
+      - updated_at
+      title: FeedbackResponseApi
+      description: Response model for feedback.
+    FeedbackUpdateRequestApi:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Name/title of the feedback
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: Author of the feedback
+        author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Type
+          description: 'Type of feedback author: Internal, External, or null'
+        feedback_original:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Original
+          description: Original feedback text
+      type: object
+      title: FeedbackUpdateRequestApi
+      description: Request model for updating feedback.
+    FeedbackWithPainpointsResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Feedback UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Name/title of the feedback
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: Author of the feedback
+        author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Type
+          description: 'Type of feedback author: Internal, External, or null'
+        status:
+          type: string
+          title: Status
+          description: Status of the feedback
+        feedback_original:
+          type: string
+          title: Feedback Original
+          description: Original feedback text
+        feedback_processed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Processed
+          description: Processed feedback
+        source:
+          type: string
+          title: Source
+          description: Source of the feedback
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+        painpoints:
+          items:
+            $ref: '#/components/schemas/PainpointInFeedbackResponseApi'
+          type: array
+          title: Painpoints
+          description: Painpoints extracted from this feedback
+      type: object
+      required:
+      - id
+      - project_id
+      - status
+      - feedback_original
+      - source
+      - created_at
+      - updated_at
+      title: FeedbackWithPainpointsResponseApi
+      description: Feedback response with embedded painpoints (returned when include=painpoint).
+    GrantedByUserApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        email:
+          type: string
+          title: Email
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+      type: object
+      required:
+      - id
+      - email
+      title: GrantedByUserApi
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    InvoiceItemApi:
+      properties:
+        id:
+          type: string
+          title: Id
+        date:
+          type: string
+          title: Date
+        amount_usd:
+          type: integer
+          title: Amount Usd
+        status:
+          type: string
+          title: Status
+        pdf_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pdf Url
+      type: object
+      required:
+      - id
+      - date
+      - amount_usd
+      - status
+      title: InvoiceItemApi
+    InvoicesResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/InvoiceItemApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/PaginationInfoApi'
+      type: object
+      required:
+      - items
+      - pagination
+      title: InvoicesResponseApi
+    JobInputFieldApi:
+      properties:
+        name:
+          type: string
+          title: Name
+        type:
+          type: string
+          title: Type
+          description: 'Field type: string, number'
+          default: string
+        required:
+          type: boolean
+          title: Required
+          default: false
+        label:
+          type: string
+          title: Label
+          default: ''
+        placeholder:
+          type: string
+          title: Placeholder
+          default: ''
+      type: object
+      required:
+      - name
+      title: JobInputFieldApi
+      description: Describes a single input field for a job.
+    JobItemResponseApi:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: Machine-readable job name
+        description:
+          type: string
+          title: Description
+          description: Human-readable job description
+        inputs:
+          items:
+            $ref: '#/components/schemas/JobInputFieldApi'
+          type: array
+          title: Inputs
+          description: Input fields required to run the job
+      type: object
+      required:
+      - name
+      - description
+      title: JobItemResponseApi
+      description: Single job metadata.
+    JobListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/JobItemResponseApi'
+          type: array
+          title: Items
+          description: Available jobs
+      type: object
+      required:
+      - items
+      title: JobListResponseApi
+      description: Response for listing available jobs.
+    JobQueueItemApi:
+      properties:
+        id:
+          type: string
+          title: Id
+        type:
+          type: string
+          title: Type
+        status:
+          type: string
+          title: Status
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+        priority:
+          type: integer
+          title: Priority
+          default: 0
+        attempts:
+          type: integer
+          title: Attempts
+          default: 0
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+        started_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Started At
+      type: object
+      required:
+      - id
+      - type
+      - status
+      title: JobQueueItemApi
+      description: A job entry from the queue.
+    JobQueueResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/JobQueueItemApi'
+          type: array
+          title: Items
+      type: object
+      title: JobQueueResponseApi
+      description: Response for listing queued jobs.
+    JobRunRequestApi:
+      properties:
+        payload:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Payload
+          description: Job-specific parameters
+      type: object
+      title: JobRunRequestApi
+      description: Request body for triggering a job.
+    JobRunResponseApi:
+      properties:
+        status:
+          type: string
+          title: Status
+          description: Execution status (success / error)
+        job_name:
+          type: string
+          title: Job Name
+          description: Name of the executed job
+        message:
+          type: string
+          title: Message
+          description: Human-readable result message
+      type: object
+      required:
+      - status
+      - job_name
+      - message
+      title: JobRunResponseApi
+      description: Response after running a job.
+    LedgerEntryApi:
+      properties:
+        id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Id
+        kind:
+          type: string
+          title: Kind
+        amount:
+          type: integer
+          title: Amount
+        reason:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Reason
+        expires_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expires At
+        period_start:
+          type: string
+          title: Period Start
+        period_end:
+          type: string
+          title: Period End
+        created_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Created At
+      type: object
+      required:
+      - kind
+      - amount
+      - period_start
+      - period_end
+      title: LedgerEntryApi
+    MappedPilotApi:
+      properties:
+        company_name:
+          type: string
+          title: Company Name
+          description: Company name
+        ticker:
+          type: string
+          title: Ticker
+          description: Company ticker symbol
+        year:
+          type: integer
+          title: Year
+          description: Year of the earnings call
+        quarter:
+          type: integer
+          title: Quarter
+          description: Quarter of the earnings call
+        pilot_id:
+          type: string
+          title: Pilot Id
+          description: Unique pilot identifier
+        pilot_name:
+          type: string
+          title: Pilot Name
+          description: Name of the pilot
+        pilot_category:
+          $ref: '#/components/schemas/CategoryEnum'
+          description: Category of the pilot
+        pilot_description:
+          type: string
+          title: Pilot Description
+          description: Description of the pilot
+        pilot_features:
+          items:
+            type: string
+          type: array
+          title: Pilot Features
+          description: List of pilot features
+        pilot_user_story:
+          $ref: '#/components/schemas/UserStory'
+          description: User story for the pilot
+        pilot_id_past:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pilot Id Past
+          description: ID of the past pilot this maps to
+        pilot_id_future:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pilot Id Future
+          description: ID of the future pilot this maps to
+      type: object
+      required:
+      - company_name
+      - ticker
+      - year
+      - quarter
+      - pilot_id
+      - pilot_name
+      - pilot_category
+      - pilot_description
+      - pilot_user_story
+      title: MappedPilotApi
+      description: Model for mapped pilot data.
+    MarketDemandSignalApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Signal UUID
+        name:
+          type: string
+          title: Name
+          description: Signal name
+        globalSupply:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Globalsupply
+          description: Year -> count of ProductNeed matches
+        localDemand:
+          additionalProperties:
+            type: integer
+          type: object
+          title: Localdemand
+          description: Year -> count of Feedback matches
+      type: object
+      required:
+      - id
+      - name
+      - globalSupply
+      - localDemand
+      title: MarketDemandSignalApi
+      description: Response model for a single signal's market demand data.
+    MeResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: User UUID
+        email:
+          type: string
+          title: Email
+          description: User email address
+        name:
+          type: string
+          title: Name
+          description: User full name
+        role:
+          type: string
+          title: Role
+          description: User role (admin/user)
+        created_at:
+          type: string
+          title: Created At
+          description: Account creation timestamp
+      type: object
+      required:
+      - id
+      - email
+      - name
+      - role
+      - created_at
+      title: MeResponseApi
+      description: 'Minimal current-user payload for /v1/me. Use ``BackendUserResponseApi``
+
+        via ``/v1/users/info`` when you need the full picture.'
+    MessageApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        conversation_id:
+          type: string
+          format: uuid
+          title: Conversation Id
+        role:
+          type: string
+          title: Role
+        content:
+          type: string
+          title: Content
+        status:
+          type: string
+          title: Status
+        metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Metadata
+        created_at:
+          type: string
+          title: Created At
+        updated_at:
+          type: string
+          title: Updated At
+      type: object
+      required:
+      - id
+      - conversation_id
+      - role
+      - content
+      - status
+      - created_at
+      - updated_at
+      title: MessageApi
+    MessageCreateApi:
+      properties:
+        content:
+          type: string
+          maxLength: 10000
+          minLength: 1
+          title: Content
+        idempotency_key:
+          type: string
+          maxLength: 100
+          minLength: 1
+          title: Idempotency Key
+        metadata:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Metadata
+        exploration_seconds:
+          anyOf:
+          - type: integer
+            maximum: 86400.0
+            minimum: 0.0
+          - type: 'null'
+          title: Exploration Seconds
+          description: FE-measured active seconds since last message (bias tracker)
+      type: object
+      required:
+      - content
+      - idempotency_key
+      title: MessageCreateApi
+    MessageListApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/MessageApi'
+          type: array
+          title: Items
+        next_cursor:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Cursor
+      type: object
+      required:
+      - items
+      title: MessageListApi
+    NewsletterItemApi:
+      properties:
+        email:
+          type: string
+          title: Email
+        newsletter_subscribed_at:
+          type: string
+          title: Newsletter Subscribed At
+        newsletter_unsubscribed_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Newsletter Unsubscribed At
+        created_at:
+          type: string
+          title: Created At
+        updated_at:
+          type: string
+          title: Updated At
+      type: object
+      required:
+      - email
+      - newsletter_subscribed_at
+      - created_at
+      - updated_at
+      title: NewsletterItemApi
+    NewsletterListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/NewsletterItemApi'
+          type: array
+          title: Items
+        pagination:
+          $ref: '#/components/schemas/api__routers__blog_posts__models__PaginationInfo'
+      type: object
+      required:
+      - items
+      - pagination
+      title: NewsletterListResponseApi
+    NewsletterResponseApi:
+      properties:
+        message:
+          type: string
+          title: Message
+          default: ok
+      type: object
+      title: NewsletterResponseApi
+    NewsletterSubscribeApi:
+      properties:
+        email:
+          type: string
+          title: Email
+      type: object
+      required:
+      - email
+      title: NewsletterSubscribeApi
+    OrgCreditsApi:
+      properties:
+        added_balance:
+          type: integer
+          title: Added Balance
+        next_expiry_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Next Expiry At
+      type: object
+      required:
+      - added_balance
+      title: OrgCreditsApi
+    OrgSummaryApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        plan_slug:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Plan Slug
+      type: object
+      required:
+      - id
+      title: OrgSummaryApi
+      description: Minimal org info attached to admin user list response.
+    OrganizationCreateRequestApi:
+      properties:
+        company_name:
+          type: string
+          title: Company Name
+          description: Company name (required)
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+          description: Website URL
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+          description: Company vision or builder description
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+          description: Company mission (optional)
+        similar_companies:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Similar Companies
+          description: Comma-separated similar company URLs
+        what_company_offers:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: What Company Offers
+          description: Description of what the company offers
+      type: object
+      required:
+      - company_name
+      title: OrganizationCreateRequestApi
+      description: Request model for creating organization.
+    OrganizationListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/OrganizationResponseApi'
+          type: array
+          title: Items
+          description: List of organizations
+        pagination:
+          $ref: '#/components/schemas/api__routers__organization__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: OrganizationListResponseApi
+      description: Response model for organization list.
+    OrganizationResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Organization UUID
+        company_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Name
+          description: Official name of the company/organization
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+          description: Website URL
+        tariff:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Tariff
+          description: Tariff plan
+        vat_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vat Id
+          description: VAT identification number
+        street:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Street
+          description: Street address (line 1)
+        street_line2:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Street Line2
+          description: Street address (line 2)
+        city:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: City
+          description: City name
+        state:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: State
+          description: State/region
+        zip:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Zip
+          description: ZIP/postal code
+        country:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Country
+          description: ISO-3166-1 alpha-2 country code
+        billing_contact_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Billing Contact Name
+          description: Contact person for billing
+        user_role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Role
+          description: User's role in this organization
+        is_shared:
+          type: boolean
+          title: Is Shared
+          description: True when the user has no membership in this org but accesses
+            ≥1 shared project from it
+          default: false
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+      type: object
+      required:
+      - id
+      - created_at
+      - updated_at
+      title: OrganizationResponseApi
+      description: Response model for organization.
+    OrganizationUpdateRequestApi:
+      properties:
+        company_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Name
+          description: Company name
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+          description: Website URL
+      type: object
+      title: OrganizationUpdateRequestApi
+      description: Request model for updating organization (editable fields only).
+    PaginationInfoApi:
+      properties:
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        limit:
+          type: integer
+          title: Limit
+        total_pages:
+          type: integer
+          title: Total Pages
+      type: object
+      required:
+      - total
+      - page
+      - limit
+      - total_pages
+      title: PaginationInfoApi
+    PainpointInFeedbackResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Painpoint UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        feedback_id:
+          type: string
+          format: uuid
+          title: Feedback Id
+          description: Feedback UUID
+        painpoint_original:
+          type: string
+          title: Painpoint Original
+          description: Raw extracted pain point string
+        painpoint_processed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Painpoint Processed
+          description: AI-cleaned pain point string
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+      type: object
+      required:
+      - id
+      - project_id
+      - feedback_id
+      - painpoint_original
+      - created_at
+      - updated_at
+      title: PainpointInFeedbackResponseApi
+      description: Minimal painpoint embedded in a feedback response (when include=painpoint).
+    PainpointListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/PainpointResponseApi'
+          type: array
+          title: Items
+          description: List of painpoints
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: PainpointListResponseApi
+      description: Response model for a paginated list of painpoints.
+    PainpointResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Painpoint UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        feedback_id:
+          type: string
+          format: uuid
+          title: Feedback Id
+          description: Feedback UUID
+        painpoint_original:
+          type: string
+          title: Painpoint Original
+          description: Raw extracted pain point string
+        painpoint_processed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Painpoint Processed
+          description: AI-cleaned pain point string
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+      type: object
+      required:
+      - id
+      - project_id
+      - feedback_id
+      - painpoint_original
+      - created_at
+      - updated_at
+      title: PainpointResponseApi
+      description: Response model for a single painpoint.
+    PainpointWithFeedbackListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/PainpointWithFeedbackResponseApi'
+          type: array
+          title: Items
+          description: List of painpoints with feedback
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: PainpointWithFeedbackListResponseApi
+      description: Response model for a paginated list of painpoints with embedded
+        feedback.
+    PainpointWithFeedbackResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Painpoint UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        feedback_id:
+          type: string
+          format: uuid
+          title: Feedback Id
+          description: Feedback UUID
+        painpoint_original:
+          type: string
+          title: Painpoint Original
+          description: Raw extracted pain point string
+        painpoint_processed:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Painpoint Processed
+          description: AI-cleaned pain point string
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        feedback:
+          anyOf:
+          - $ref: '#/components/schemas/FeedbackInPainpointResponseApi'
+          - type: 'null'
+          description: Associated feedback
+      type: object
+      required:
+      - id
+      - project_id
+      - feedback_id
+      - painpoint_original
+      - created_at
+      - updated_at
+      title: PainpointWithFeedbackResponseApi
+      description: Response model for a single painpoint with embedded feedback.
+    PilotChainApi:
+      properties:
+        pilots:
+          items:
+            $ref: '#/components/schemas/MappedPilotApi'
+          type: array
+          title: Pilots
+          description: List of pilots in chronological order
+        total_pilots:
+          type: integer
+          title: Total Pilots
+          description: Total number of pilots in the chain
+          default: 0
+      type: object
+      title: PilotChainApi
+      description: Model for a complete chain of connected pilots.
+    PlanResponseApi:
+      properties:
+        slug:
+          type: string
+          title: Slug
+        name:
+          type: string
+          title: Name
+        price_usd_cents:
+          type: integer
+          title: Price Usd Cents
+        credits_monthly:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Credits Monthly
+        trial_days:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Trial Days
+      type: object
+      required:
+      - slug
+      - name
+      - price_usd_cents
+      title: PlanResponseApi
+    PlansListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/PlanResponseApi'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: PlansListResponseApi
+    PlatformSettingsResponseApi:
+      properties:
+        tc_version:
+          type: integer
+          title: Tc Version
+          default: 1
+        chat_ai_models:
+          items:
+            $ref: '#/components/schemas/ChatAiModelApi'
+          type: array
+          title: Chat Ai Models
+          default: []
+      type: object
+      title: PlatformSettingsResponseApi
+    PlatformSettingsUpdateRequestApi:
+      properties:
+        tc_version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Tc Version
+      type: object
+      title: PlatformSettingsUpdateRequestApi
+    PortalResponseApi:
+      properties:
+        portal_url:
+          type: string
+          title: Portal Url
+      type: object
+      required:
+      - portal_url
+      title: PortalResponseApi
+    PresentationCreateRequestApi:
+      properties:
+        signal_id:
+          type: string
+          format: uuid
+          title: Signal Id
+          description: Signal UUID to create presentation for
+        items:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          maxItems: 50
+          title: Items
+          description: Slide[] array (max 50 slides)
+        name:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Name
+          description: Version name (optional)
+      type: object
+      required:
+      - signal_id
+      - items
+      title: PresentationCreateRequestApi
+      description: Request model for creating presentation.
+    PresentationDeleteResponseApi:
+      properties:
+        success:
+          type: boolean
+          title: Success
+          description: Whether the deletion was successful
+      type: object
+      required:
+      - success
+      title: PresentationDeleteResponseApi
+      description: Response model for presentation deletion.
+    PresentationListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/PresentationResponseApi'
+          type: array
+          title: Items
+          description: List of presentations
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: PresentationListResponseApi
+      description: Response model for presentation list.
+    PresentationPublicResponseApi:
+      properties:
+        share_uuid:
+          type: string
+          format: uuid
+          title: Share Uuid
+          description: Public-facing share UUID
+        signal_name:
+          type: string
+          title: Signal Name
+          description: Name of the linked signal
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Version name
+        version:
+          type: integer
+          title: Version
+          description: Version number
+        items:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Items
+          description: Slide[] array
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+      type: object
+      required:
+      - share_uuid
+      - signal_name
+      - version
+      - items
+      - created_at
+      title: PresentationPublicResponseApi
+      description: Response model for public presentation (no auth).
+    PresentationResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Presentation UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        signal_id:
+          type: string
+          format: uuid
+          title: Signal Id
+          description: Signal UUID
+        share_uuid:
+          type: string
+          format: uuid
+          title: Share Uuid
+          description: Public-facing share UUID
+        created_by:
+          type: string
+          format: uuid
+          title: Created By
+          description: Creator user UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Version name
+        version:
+          type: integer
+          title: Version
+          description: Version number
+        items:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          title: Items
+          description: Slide[] array
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+      type: object
+      required:
+      - id
+      - project_id
+      - signal_id
+      - share_uuid
+      - created_by
+      - version
+      - items
+      - created_at
+      - updated_at
+      title: PresentationResponseApi
+      description: Response model for presentation.
+    PresentationUpdateRequestApi:
+      properties:
+        items:
+          items:
+            additionalProperties: true
+            type: object
+          type: array
+          maxItems: 50
+          title: Items
+          description: Slide[] array (max 50 slides)
+        name:
+          anyOf:
+          - type: string
+            maxLength: 255
+          - type: 'null'
+          title: Name
+          description: Version name (optional)
+      type: object
+      required:
+      - items
+      title: PresentationUpdateRequestApi
+      description: Request model for updating presentation.
+    ProductDetailApi:
+      properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        companyId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Companyid
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        blogpostUrl:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Blogposturl
+        blogpostText:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Blogposttext
+        releasedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Releasedat
+        createdAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Createdat
+        updatedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Updatedat
+        needs:
+          items:
+            $ref: '#/components/schemas/ProductNeedDetailApi'
+          type: array
+          title: Needs
+          description: Product needs
+      type: object
+      title: ProductDetailApi
+      description: Product with needs in company detail.
+    ProductDiscoveryResponseApi:
+      properties:
+        products_description:
+          type: string
+          title: Products Description
+          description: Short company description
+          default: ''
+        products:
+          items:
+            $ref: '#/components/schemas/ProductItemApi'
+          type: array
+          title: Products
+          description: Up to 4 discovered products
+      type: object
+      title: ProductDiscoveryResponseApi
+      description: Response model for homepage product discovery.
+    ProductInProductNeedResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Product UUID
+        name:
+          type: string
+          title: Name
+          description: Product name
+        description:
+          type: string
+          title: Description
+          description: Product description
+        blogpost_url:
+          type: string
+          title: Blogpost Url
+          description: Blog post URL related to the product
+        released_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Released At
+          description: Product release date (ISO)
+      type: object
+      required:
+      - id
+      - name
+      - description
+      - blogpost_url
+      title: ProductInProductNeedResponseApi
+      description: Minimal product info embedded in product need response (include=company).
+    ProductItemApi:
+      properties:
+        name:
+          type: string
+          title: Name
+          description: Product name
+        description:
+          type: string
+          title: Description
+          description: Short product description
+          default: ''
+        year:
+          type: string
+          title: Year
+          description: Year product was launched or mentioned
+          default: ''
+      type: object
+      required:
+      - name
+      title: ProductItemApi
+      description: Response model for a single discovered product.
+    ProductNeedDetailApi:
+      properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+        productId:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Productid
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Description
+        descriptionOriginal:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Descriptionoriginal
+        businessDescription:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Businessdescription
+        painPoint:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Painpoint
+        createdAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Createdat
+        updatedAt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Updatedat
+      type: object
+      title: ProductNeedDetailApi
+      description: Product need in company detail (fields matching ProductNeed.to_dict()).
+    ProductNeedDetailResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: ProductNeed UUID
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+          description: Foreign key to products.id
+        name:
+          type: string
+          title: Name
+          description: Product need name
+        description:
+          type: string
+          title: Description
+          description: Normalized/processed description
+        description_original:
+          type: string
+          title: Description Original
+          description: Original description as sourced
+        business_description:
+          type: string
+          title: Business Description
+          description: Business-oriented interpretation
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Pain point this need addresses
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+      type: object
+      required:
+      - id
+      - product_id
+      - name
+      - description
+      - description_original
+      - business_description
+      - created_at
+      - updated_at
+      title: ProductNeedDetailResponseApi
+      description: Single product need response (from `product_needs` table).
+    ProductNeedDetailWithCompanyResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: ProductNeed UUID
+        product_id:
+          type: string
+          format: uuid
+          title: Product Id
+          description: Foreign key to products.id
+        name:
+          type: string
+          title: Name
+          description: Product need name
+        description:
+          type: string
+          title: Description
+          description: Normalized/processed description
+        description_original:
+          type: string
+          title: Description Original
+          description: Original description as sourced
+        business_description:
+          type: string
+          title: Business Description
+          description: Business-oriented interpretation
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Pain point this need addresses
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        product:
+          anyOf:
+          - $ref: '#/components/schemas/ProductInProductNeedResponseApi'
+          - type: 'null'
+          description: Linked product
+        company:
+          anyOf:
+          - $ref: '#/components/schemas/CompanyInProductNeedResponseApi'
+          - type: 'null'
+          description: Linked company (via product)
+      type: object
+      required:
+      - id
+      - product_id
+      - name
+      - description
+      - description_original
+      - business_description
+      - created_at
+      - updated_at
+      title: ProductNeedDetailWithCompanyResponseApi
+      description: Product need response with linked product and company (include=company).
+    ProductNeedSearchItemApi:
+      properties:
+        product_need:
+          additionalProperties: true
+          type: object
+          title: Product Need
+          description: Product need data (includes description_original)
+        score:
+          type: number
+          title: Score
+          description: Similarity score
+        document_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Document Id
+          description: Document ID in vector store
+        blogpost_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Blogpost Url
+          description: Blog post URL from product
+        released_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Released At
+          description: Product release date (ISO)
+        product_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Name
+          description: Product name
+        company_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Name
+          description: Company name
+      type: object
+      required:
+      - product_need
+      - score
+      title: ProductNeedSearchItemApi
+      description: Single product need search result.
+    ProductNeedSearchResponseApi:
+      properties:
+        results:
+          items:
+            $ref: '#/components/schemas/ProductNeedSearchItemApi'
+          type: array
+          title: Results
+          description: Search results
+        count:
+          type: integer
+          title: Count
+          description: Number of results returned
+      type: object
+      required:
+      - results
+      - count
+      title: ProductNeedSearchResponseApi
+      description: Response model for product need search.
+    ProgressStatsApi:
+      properties:
+        current_step:
+          type: string
+          title: Current Step
+          description: Current processing step
+        total_pages_fetched:
+          type: integer
+          title: Total Pages Fetched
+          description: Total number of pages fetched
+          default: 0
+        desired_pages_fetched:
+          type: integer
+          title: Desired Pages Fetched
+          description: Number of desired pages fetched
+          default: 0
+        pages_processed:
+          type: integer
+          title: Pages Processed
+          description: Number of blog pages processed
+          default: 0
+        total_pages_to_process:
+          type: integer
+          title: Total Pages To Process
+          description: Total number of pages to process
+          default: 0
+        company_processed:
+          type: boolean
+          title: Company Processed
+          description: Whether company data has been processed
+          default: false
+        products_extracted:
+          type: integer
+          title: Products Extracted
+          description: Number of products extracted
+          default: 0
+      type: object
+      required:
+      - current_step
+      title: ProgressStatsApi
+      description: Progress statistics model.
+    ProjectCreateRequestApi:
+      properties:
+        organization_id:
+          type: string
+          format: uuid
+          title: Organization Id
+          description: Organization UUID (required)
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Project name
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+          description: Project vision
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+          description: Project mission statement
+        similar_companies:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Similar Companies
+          description: Comma-separated URLs of similar companies
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+          description: Base64 encoded project icon
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+          description: Project website URL
+        north_star:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: North Star
+          description: North star metric
+      type: object
+      required:
+      - organization_id
+      title: ProjectCreateRequestApi
+      description: Request model for creating project.
+    ProjectDashboardStatsResponseApi:
+      properties:
+        feedbackCount:
+          type: integer
+          title: Feedbackcount
+          default: 0
+        feedbackSourcesCount:
+          type: integer
+          title: Feedbacksourcescount
+          default: 0
+        signalsCount:
+          type: integer
+          title: Signalscount
+          default: 0
+        signalsCompared:
+          type: integer
+          title: Signalscompared
+          default: 0
+        finalsCompared:
+          type: integer
+          title: Finalscompared
+          default: 0
+      type: object
+      title: ProjectDashboardStatsResponseApi
+      description: Response model for project dashboard stats.
+    ProjectListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ProjectResponseApi'
+          type: array
+          title: Items
+          description: List of projects
+        pagination:
+          $ref: '#/components/schemas/api__routers__project__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: ProjectListResponseApi
+      description: Response model for project list.
+    ProjectMemberAssignRequestApi:
+      properties:
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+          description: User UUID to assign
+        role:
+          type: string
+          title: Role
+          description: 'Role: viewer or editor'
+          default: viewer
+      type: object
+      required:
+      - user_id
+      title: ProjectMemberAssignRequestApi
+      description: Request model for assigning a user to a project.
+    ProjectMemberListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ProjectMemberResponseApi'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: ProjectMemberListResponseApi
+      description: Response model for project member list.
+    ProjectMemberResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: user_to_projects.id
+        user_id:
+          type: string
+          format: uuid
+          title: User Id
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+        role:
+          type: string
+          title: Role
+        created_at:
+          type: string
+          title: Created At
+        user_name:
+          type: string
+          title: User Name
+        user_email:
+          type: string
+          title: User Email
+        user_image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Image
+      type: object
+      required:
+      - id
+      - user_id
+      - project_id
+      - role
+      - created_at
+      - user_name
+      - user_email
+      title: ProjectMemberResponseApi
+      description: Response model for a project member.
+    ProjectMemberUpdateRequestApi:
+      properties:
+        role:
+          type: string
+          title: Role
+          description: 'Role: viewer or editor'
+      type: object
+      required:
+      - role
+      title: ProjectMemberUpdateRequestApi
+      description: Request model for updating member role.
+    ProjectResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Project UUID
+        organization_id:
+          type: string
+          format: uuid
+          title: Organization Id
+          description: Organization UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Project name
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+          description: Project vision
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+          description: Project mission statement
+        similar_companies:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Similar Companies
+          description: Comma-separated URLs of similar companies
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+          description: Base64 encoded project icon
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+          description: Project website URL
+        north_star:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: North Star
+          description: North star metric
+        is_default:
+          type: boolean
+          title: Is Default
+          description: Whether this is the default project
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+      type: object
+      required:
+      - id
+      - organization_id
+      - is_default
+      - created_at
+      - updated_at
+      title: ProjectResponseApi
+      description: Response model for project.
+    ProjectUpdateRequestApi:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Project name
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+          description: Project vision
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+          description: Project mission statement
+        similar_companies:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Similar Companies
+          description: Comma-separated URLs of similar companies
+        icon:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Icon
+          description: Base64 encoded project icon
+        url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Url
+          description: Project website URL
+        north_star:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: North Star
+          description: North star metric
+        is_default:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Default
+          description: Whether this should be the default project
+      type: object
+      title: ProjectUpdateRequestApi
+      description: Request model for updating project.
+    RecommendationListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/RecommendationResponseApi'
+          type: array
+          title: Items
+          description: Recommendations
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination info
+      type: object
+      required:
+      - items
+      - pagination
+      title: RecommendationListResponseApi
+      description: Paginated list response.
+    RecommendationPatchRequestApi:
+      properties:
+        status:
+          type: string
+          title: Status
+          description: accepted | archived
+      type: object
+      required:
+      - status
+      title: RecommendationPatchRequestApi
+      description: Patch request — set status to `accepted` or `archived`.
+    RecommendationPatchResponseApi:
+      properties:
+        recommendation:
+          $ref: '#/components/schemas/RecommendationResponseApi'
+        signal_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Signal Id
+          description: UUID of the created signal (only when status=accepted)
+      type: object
+      required:
+      - recommendation
+      title: RecommendationPatchResponseApi
+      description: Response after patch — includes optional signal_id when accepted.
+    RecommendationResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Recommendation UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        status:
+          type: string
+          title: Status
+          description: generating | active | accepted | archived
+        name:
+          type: string
+          title: Name
+          description: Title
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Identified pain point
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+          description: User story
+        market_opportunity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Market Opportunity
+          description: Market opportunity
+        sources:
+          items:
+            $ref: '#/components/schemas/RecommendationSourceApi'
+          type: array
+          title: Sources
+          description: Successful agent tool calls used during generation
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+      type: object
+      required:
+      - id
+      - project_id
+      - status
+      - name
+      - created_at
+      - updated_at
+      title: RecommendationResponseApi
+      description: Response model for recommendation.
+    RecommendationSourceApi:
+      properties:
+        text:
+          type: string
+          title: Text
+          description: Pain point text
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+          description: Reranker relevance score
+        company_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Name
+        product_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Product Name
+        company_sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Sector
+        business_description:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Business Description
+        blogpost_url:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Blogpost Url
+      type: object
+      required:
+      - text
+      title: RecommendationSourceApi
+      description: One pain point used as evidence during recommendation generation.
+    RecommendationsPilotChainsDataApi:
+      properties:
+        area:
+          type: string
+          title: Area
+          description: Area of the pilots
+        pilot_chains:
+          items:
+            $ref: '#/components/schemas/PilotChainApi'
+          type: array
+          title: Pilot Chains
+          description: List of pilot chains
+        unique_companies:
+          type: integer
+          title: Unique Companies
+          description: Number of unique companies in the recommendations
+      type: object
+      required:
+      - area
+      - unique_companies
+      title: RecommendationsPilotChainsDataApi
+    RecommendationsPilotsDataApi:
+      properties:
+        key_strategic_patterns:
+          items:
+            type: string
+          type: array
+          title: Key Strategic Patterns
+          description: Key strategic patterns identified
+        pilot_chain_groups:
+          items:
+            $ref: '#/components/schemas/RecommendationsPilotChainsDataApi'
+          type: array
+          title: Pilot Chain Groups
+          description: Grouped pilot chains by area
+      type: object
+      required:
+      - pilot_chain_groups
+      title: RecommendationsPilotsDataApi
+    RegistrationStatusApi:
+      properties:
+        open:
+          type: boolean
+          title: Open
+          description: Whether new registrations are accepted today
+      type: object
+      required:
+      - open
+      title: RegistrationStatusApi
+      description: Public status of daily registration limit (boolean only — no counts
+        leaked).
+    RiskFactorsRequestApi:
+      properties:
+        url:
+          type: string
+          title: Url
+          description: Company URL
+        risk_factors_text:
+          type: string
+          title: Risk Factors Text
+          description: Risk factors text to process
+      type: object
+      required:
+      - url
+      - risk_factors_text
+      title: RiskFactorsRequestApi
+      description: Request model for adding risk factors to a company.
+    RiskFactorsResponseApi:
+      properties:
+        success:
+          type: boolean
+          title: Success
+          description: Whether the risk factors were successfully processed
+        ticker:
+          type: string
+          title: Ticker
+          description: Company ticker
+        message:
+          type: string
+          title: Message
+          description: Status message
+      type: object
+      required:
+      - success
+      - ticker
+      - message
+      title: RiskFactorsResponseApi
+      description: Response model for risk factors addition.
+    ShareCreateRequestApi:
+      properties:
+        email:
+          type: string
+          title: Email
+          description: Recipient email
+        role:
+          type: string
+          title: Role
+          description: 'Role: editor (viewer postponed)'
+          default: editor
+      type: object
+      required:
+      - email
+      title: ShareCreateRequestApi
+      description: Request model for sharing a project by email.
+    ShareEntryApi:
+      properties:
+        type:
+          type: string
+          title: Type
+          description: '''member'' or ''invite'''
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: user_to_projects.id or project_invitations.id
+        email:
+          type: string
+          title: Email
+        role:
+          type: string
+          title: Role
+        created_at:
+          type: string
+          title: Created At
+        user_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: User Id
+        user_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Name
+        user_image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Image
+        expires_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Expires At
+        invited_by_user_id:
+          anyOf:
+          - type: string
+            format: uuid
+          - type: 'null'
+          title: Invited By User Id
+      type: object
+      required:
+      - type
+      - id
+      - email
+      - role
+      - created_at
+      title: ShareEntryApi
+      description: Unified shape for accepted members + pending invites.
+    ShareListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/ShareEntryApi'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: ShareListResponseApi
+    SignalCategoryEnum:
+      type: string
+      enum:
+      - Recommendation
+      - ManualPainPoint
+      - ClusterPainPoint
+      title: SignalCategoryEnum
+      description: Source category of a signal.
+    SignalCreateRequestApi:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Name/title of the signal (optional)
+        pain_point:
+          type: string
+          title: Pain Point
+          description: Pain point / problem statement (required)
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+          description: User story
+        market_opportunity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Market Opportunity
+          description: Market opportunity
+        feedback_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Name
+          description: Feedback name (optional)
+        feedback_original:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Original
+          description: Feedback text to link (optional)
+        feedback_author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Author
+          description: Feedback author (optional)
+        feedback_author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Feedback Author Type
+          description: 'Author type: Internal/External (optional)'
+      type: object
+      required:
+      - pain_point
+      title: SignalCreateRequestApi
+      description: Request model for creating signal.
+    SignalCreateResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Signal UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        category:
+          $ref: '#/components/schemas/SignalCategoryEnum'
+          description: Source category of the signal
+        name:
+          type: string
+          title: Name
+          description: Name/title of the signal
+        signal_original:
+          type: string
+          title: Signal Original
+          description: Original signal text
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Identified pain point
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+          description: User story
+        market_opportunity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Market Opportunity
+          description: Market opportunity
+        feedback_count:
+          type: integer
+          title: Feedback Count
+          description: Number of feedbacks linked to this signal
+          default: 0
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+        added_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Added At
+          description: When current user added this signal to compare (only when filtered
+            by is_saved=true)
+        feedback:
+          anyOf:
+          - $ref: '#/components/schemas/FeedbackInSignalCreateResponseApi'
+          - type: 'null'
+          description: Linked feedback (if created together with the signal)
+      type: object
+      required:
+      - id
+      - project_id
+      - category
+      - name
+      - signal_original
+      - created_at
+      - updated_at
+      title: SignalCreateResponseApi
+      description: Response model for signal creation, optionally includes linked
+        feedback.
+    SignalDeleteResponseApi:
+      properties:
+        success:
+          type: boolean
+          title: Success
+          description: Whether the deletion was successful
+      type: object
+      required:
+      - success
+      title: SignalDeleteResponseApi
+      description: Response model for signal deletion.
+    SignalFeedbackListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/FeedbackInPainpointResponseApi'
+          type: array
+          title: Items
+          description: List of feedbacks linked to the signal
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: SignalFeedbackListResponseApi
+      description: Response model for feedbacks linked to a signal.
+    SignalListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SignalResponseApi'
+          type: array
+          title: Items
+          description: List of signals
+        pagination:
+          $ref: '#/components/schemas/api__routers__feedback__models__PaginationInfo'
+          description: Pagination information
+      type: object
+      required:
+      - items
+      - pagination
+      title: SignalListResponseApi
+      description: Response model for signal list.
+    SignalProgressItemApi:
+      properties:
+        chat:
+          additionalProperties:
+            $ref: '#/components/schemas/ChatTypeCountApi'
+          type: object
+          title: Chat
+          description: Map conversation_type → counts (all 8 types always present)
+        exploration_seconds:
+          type: integer
+          title: Exploration Seconds
+          description: Total exploration seconds (sum of bias deltas)
+          default: 0
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Signal UUID
+      type: object
+      required:
+      - chat
+      - id
+      title: SignalProgressItemApi
+      description: Progress item in a list response (includes signal id).
+    SignalProgressResponseApi:
+      properties:
+        chat:
+          additionalProperties:
+            $ref: '#/components/schemas/ChatTypeCountApi'
+          type: object
+          title: Chat
+          description: Map conversation_type → counts (all 8 types always present)
+        exploration_seconds:
+          type: integer
+          title: Exploration Seconds
+          description: Total exploration seconds (sum of bias deltas)
+          default: 0
+      type: object
+      required:
+      - chat
+      title: SignalProgressResponseApi
+      description: 'Progress for a single signal: chat counts per type + total exploration
+        seconds.'
+    SignalResponseApi:
+      properties:
+        id:
+          type: string
+          format: uuid
+          title: Id
+          description: Signal UUID
+        project_id:
+          type: string
+          format: uuid
+          title: Project Id
+          description: Project UUID
+        category:
+          $ref: '#/components/schemas/SignalCategoryEnum'
+          description: Source category of the signal
+        name:
+          type: string
+          title: Name
+          description: Name/title of the signal
+        signal_original:
+          type: string
+          title: Signal Original
+          description: Original signal text
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Identified pain point
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+          description: User story
+        market_opportunity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Market Opportunity
+          description: Market opportunity
+        feedback_count:
+          type: integer
+          title: Feedback Count
+          description: Number of feedbacks linked to this signal
+          default: 0
+        created_at:
+          type: string
+          title: Created At
+          description: Creation timestamp
+        updated_at:
+          type: string
+          title: Updated At
+          description: Last update timestamp
+        deleted_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Deleted At
+          description: Soft delete timestamp
+        added_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Added At
+          description: When current user added this signal to compare (only when filtered
+            by is_saved=true)
+      type: object
+      required:
+      - id
+      - project_id
+      - category
+      - name
+      - signal_original
+      - created_at
+      - updated_at
+      title: SignalResponseApi
+      description: Response model for signal.
+    SignalUpdateRequestApi:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Name/title of the signal
+        signal_original:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Signal Original
+          description: Original signal text
+        user_story:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Story
+          description: User story
+        market_opportunity:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Market Opportunity
+          description: Market opportunity
+      type: object
+      title: SignalUpdateRequestApi
+      description: Request model for updating signal.
+    SimilarCompanyApi:
+      properties:
+        ticker:
+          type: string
+          title: Ticker
+          description: Company ticker symbol
+        name:
+          type: string
+          title: Name
+          description: Company name
+        sector:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Sector
+          description: Sector of the company
+        website:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Website
+          description: Website URL of the company
+        mission:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Mission
+          description: Mission statement of the company
+        vision:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Vision
+          description: Vision statement of the company
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+          description: Similarity score between 0 and 1
+      type: object
+      required:
+      - ticker
+      - name
+      title: SimilarCompanyApi
+    SimilarFeedbackListItemApi:
+      properties:
+        id:
+          type: string
+          title: Id
+          description: Feedback UUID
+        project_id:
+          type: string
+          title: Project Id
+          description: Project UUID
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Feedback name/title
+        author:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author
+          description: Feedback author
+        author_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Author Type
+          description: Author type
+        status:
+          type: string
+          title: Status
+          description: Feedback status
+        feedback_original:
+          type: string
+          title: Feedback Original
+          description: Original feedback text
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Identified pain point
+        source:
+          type: string
+          title: Source
+          description: Feedback source
+        created_at:
+          type: string
+          title: Created At
+          description: Created timestamp
+      type: object
+      required:
+      - id
+      - project_id
+      - status
+      - feedback_original
+      - source
+      - created_at
+      title: SimilarFeedbackListItemApi
+      description: Single feedback in the similar feedbacks list.
+    SimilarFeedbackListResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/SimilarFeedbackListItemApi'
+          type: array
+          title: Items
+          description: List of feedbacks
+        total:
+          type: integer
+          title: Total
+          description: Total number of feedbacks
+      type: object
+      required:
+      - items
+      - total
+      title: SimilarFeedbackListResponseApi
+      description: Response model for GET similar-feedbacks/feedbacks list.
+    SimilarFeedbackResultResponseApi:
+      properties:
+        feedback_id:
+          type: string
+          title: Feedback Id
+          description: The queried feedback ID
+        similar_feedbacks:
+          items:
+            $ref: '#/components/schemas/SimilarPainPointItemApi'
+          type: array
+          title: Similar Feedbacks
+          description: Similar Feedback pain point items
+      type: object
+      required:
+      - feedback_id
+      - similar_feedbacks
+      title: SimilarFeedbackResultResponseApi
+      description: Response model for GET similar-feedbacks/<feedback_id>.
+    SimilarPainPointItemApi:
+      properties:
+        id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Id
+          description: Item ID (painpoint UUID)
+        document_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Document Id
+          description: Document ID in vector store
+        type:
+          type: string
+          title: Type
+          description: 'Item type: ''Feedback'''
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: Feedback name/title
+        pain_point:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Pain Point
+          description: Identified pain point
+        score:
+          type: number
+          title: Score
+          description: Similarity score
+        payload:
+          additionalProperties: true
+          type: object
+          title: Payload
+          description: Full payload from vector store
+      type: object
+      required:
+      - type
+      - score
+      title: SimilarPainPointItemApi
+      description: Single similar pain point result.
+    SimilarRiskCompanyApi:
+      properties:
+        ticker:
+          type: string
+          title: Ticker
+          description: Company ticker symbol
+        name:
+          type: string
+          title: Name
+          description: Company name
+        year:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Year
+          description: Year of the earnings call
+        quarter:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Quarter
+          description: Quarter of the earnings call
+        score:
+          anyOf:
+          - type: number
+          - type: 'null'
+          title: Score
+          description: Similarity score between 0 and 1
+      type: object
+      required:
+      - ticker
+      - name
+      title: SimilarRiskCompanyApi
+    SubscriptionOwningOrgApi:
+      properties:
+        id:
+          type: string
+          title: Id
+        company_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Company Name
+      type: object
+      required:
+      - id
+      title: SubscriptionOwningOrgApi
+    SubscriptionResponseApi:
+      properties:
+        plan_slug:
+          type: string
+          title: Plan Slug
+        plan_name:
+          type: string
+          title: Plan Name
+        status:
+          type: string
+          title: Status
+        billing_enabled:
+          type: boolean
+          title: Billing Enabled
+        trial_ends_at:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Trial Ends At
+        current_period_start:
+          type: string
+          title: Current Period Start
+        current_period_end:
+          type: string
+          title: Current Period End
+        credits:
+          anyOf:
+          - additionalProperties: true
+            type: object
+          - type: 'null'
+          title: Credits
+        usage:
+          anyOf:
+          - $ref: '#/components/schemas/UsageSummaryApi'
+          - type: 'null'
+        credit_cap:
+          anyOf:
+          - $ref: '#/components/schemas/CreditCapApi'
+          - type: 'null'
+        is_owned_by_user:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Is Owned By User
+        organization:
+          anyOf:
+          - $ref: '#/components/schemas/SubscriptionOwningOrgApi'
+          - type: 'null'
+      type: object
+      required:
+      - plan_slug
+      - plan_name
+      - status
+      - billing_enabled
+      - current_period_start
+      - current_period_end
+      title: SubscriptionResponseApi
+    SyncTopupRequestApi:
+      properties:
+        session_id:
+          type: string
+          title: Session Id
+          description: Stripe Checkout Session ID
+      type: object
+      required:
+      - session_id
+      title: SyncTopupRequestApi
+    TopupPackageApi:
+      properties:
+        slug:
+          type: string
+          title: Slug
+        credits:
+          type: integer
+          title: Credits
+        price_usd_cents:
+          type: integer
+          title: Price Usd Cents
+      type: object
+      required:
+      - slug
+      - credits
+      - price_usd_cents
+      title: TopupPackageApi
+    TopupPackagesResponseApi:
+      properties:
+        items:
+          items:
+            $ref: '#/components/schemas/TopupPackageApi'
+          type: array
+          title: Items
+      type: object
+      required:
+      - items
+      title: TopupPackagesResponseApi
+    TranscriptCreateRequestApi:
+      properties:
+        audio:
+          type: string
+          title: Audio
+          description: Base64-encoded audio data
+        content_type:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Content Type
+          description: MIME type of the audio (e.g. audio/webm;codecs=opus)
+      type: object
+      required:
+      - audio
+      title: TranscriptCreateRequestApi
+      description: Request payload for creating a transcript (base64 audio).
+    TranscriptResponseApi:
+      properties:
+        text:
+          type: string
+          title: Text
+      type: object
+      required:
+      - text
+      title: TranscriptResponseApi
+      description: Response payload for transcript endpoint.
+    UsageDataPointApi:
+      properties:
+        date:
+          type: string
+          title: Date
+        credits_used_cumulative:
+          type: integer
+          title: Credits Used Cumulative
+      type: object
+      required:
+      - date
+      - credits_used_cumulative
+      title: UsageDataPointApi
+    UsageResponseApi:
+      properties:
+        period_start:
+          type: string
+          title: Period Start
+        period_end:
+          type: string
+          title: Period End
+        credits_granted:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Credits Granted
+        data_points:
+          items:
+            $ref: '#/components/schemas/UsageDataPointApi'
+          type: array
+          title: Data Points
+          default: []
+      type: object
+      required:
+      - period_start
+      - period_end
+      title: UsageResponseApi
+    UsageSummaryApi:
+      properties:
+        total_cost_usd_cents:
+          type: number
+          title: Total Cost Usd Cents
+          default: 0.0
+        total_tokens:
+          type: integer
+          title: Total Tokens
+          default: 0
+      type: object
+      title: UsageSummaryApi
+    UserCompanyAnalysisApi:
+      properties:
+        company_url:
+          type: string
+          title: Company Url
+          description: URL of the company
+        created_at:
+          type: string
+          title: Created At
+          description: Record creation timestamp
+      type: object
+      required:
+      - company_url
+      - created_at
+      title: UserCompanyAnalysisApi
+      description: Company analysis record for user.
+    UserDeleteResponseApi:
+      properties:
+        success:
+          type: boolean
+          title: Success
+          description: Whether the deletion was successful
+        message:
+          type: string
+          title: Message
+          description: Status message
+      type: object
+      required:
+      - success
+      - message
+      title: UserDeleteResponseApi
+    UserMeUpdateRequestApi:
+      properties:
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+        locale:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Locale
+        newsletter_subscribed:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Newsletter Subscribed
+        accepted_tc_version:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Accepted Tc Version
+        participation_in_studies:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Participation In Studies
+      type: object
+      title: UserMeUpdateRequestApi
+      description: Request model for self-service profile update.
+    UserStory:
+      properties:
+        as_a:
+          type: string
+          title: As A
+          description: The role of the user, e.g., 'As a busy person'
+        i_want:
+          type: string
+          title: I Want
+          description: The goal of the user, e.g., 'I want to find a quick solution'
+        so_that:
+          type: string
+          title: So That
+          description: The benefit of the goal, e.g., 'So that I can save time'
+      type: object
+      required:
+      - as_a
+      - i_want
+      - so_that
+      title: UserStory
+      description: LLM-structured output for user story identification.
+    UserSyncRequestApi:
+      properties:
+        email:
+          type: string
+          title: Email
+          description: User email address
+        name:
+          type: string
+          title: Name
+          description: User full name
+        image:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Image
+          description: User profile image URL
+        email_verified:
+          type: boolean
+          title: Email Verified
+          description: Email verification status
+        given_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Given Name
+          description: User's given/first name
+        family_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Family Name
+          description: User's family/last name
+        locale:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Locale
+          description: User's locale/language preference
+        hd:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Hd
+          description: Hosted domain for Google Workspace users
+      type: object
+      required:
+      - email
+      - name
+      - email_verified
+      title: UserSyncRequestApi
+      description: Request model for syncing user from OAuth.
+    UserUpdateRequestApi:
+      properties:
+        email:
+          type: string
+          title: Email
+          description: User email address to identify the user
+        name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Name
+          description: New user full name
+        role:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Role
+          description: New user role (admin/user)
+      type: object
+      required:
+      - email
+      title: UserUpdateRequestApi
+      description: Request model for updating user parameters (admin).
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError
+    api__routers__blog_posts__models__PaginationInfo:
+      properties:
+        total:
+          type: integer
+          title: Total
+        page:
+          type: integer
+          title: Page
+        limit:
+          type: integer
+          title: Limit
+        total_pages:
+          type: integer
+          title: Total Pages
+      type: object
+      required:
+      - total
+      - page
+      - limit
+      - total_pages
+      title: PaginationInfo
+    api__routers__feedback__models__PaginationInfo:
+      properties:
+        total:
+          type: integer
+          title: Total
+          description: Total number of items
+        page:
+          type: integer
+          title: Page
+          description: Current page number
+        limit:
+          type: integer
+          title: Limit
+          description: Number of items per page
+        total_pages:
+          type: integer
+          title: Total Pages
+          description: Total number of pages
+      type: object
+      required:
+      - total
+      - page
+      - limit
+      - total_pages
+      title: PaginationInfo
+      description: Pagination information.
+    api__routers__organization__models__PaginationInfo:
+      properties:
+        total:
+          type: integer
+          title: Total
+          description: Total number of items
+        page:
+          type: integer
+          title: Page
+          description: Current page number
+        limit:
+          type: integer
+          title: Limit
+          description: Number of items per page
+        total_pages:
+          type: integer
+          title: Total Pages
+          description: Total number of pages
+      type: object
+      required:
+      - total
+      - page
+      - limit
+      - total_pages
+      title: PaginationInfo
+      description: Pagination information.
+    api__routers__project__models__PaginationInfo:
+      properties:
+        total:
+          type: integer
+          title: Total
+          description: Total number of items
+        page:
+          type: integer
+          title: Page
+          description: Current page number
+        limit:
+          type: integer
+          title: Limit
+          description: Number of items per page
+        total_pages:
+          type: integer
+          title: Total Pages
+          description: Total number of pages
+      type: object
+      required:
+      - total
+      - page
+      - limit
+      - total_pages
+      title: PaginationInfo
+      description: Pagination information.
+    ErrorResponse:
+      type: object
+      required:
+      - detail
+      properties:
+        detail:
+          type: object
+          required:
+          - code
+          - message
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code, e.g. VALIDATION_ERROR, RATE_LIMIT_EXCEEDED,
+                ARCHIVED.
+              example: VALIDATION_ERROR
+            message:
+              type: string
+            fields:
+              type: array
+              items:
+                $ref: '#/components/schemas/FieldError'
+              description: Set when per-field validation failed.
+            retry_after:
+              type: integer
+              description: Seconds to wait before retrying. Set on 429 responses.
+    FieldError:
+      type: object
+      required:
+      - field
+      - code
+      - message
+      properties:
+        field:
+          type: string
+          description: Dot-notation path to the offending field, e.g. address.city.
+        code:
+          type: string
+        message:
+          type: string
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: ContinuumTrackerApiKey
+      description: Self-issued API key, prefix `ct_`. Generate or rotate a key in
+        the web app at `/settings/access`.
+  responses:
+    Unauthorized:
+      description: Missing or invalid credentials.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Forbidden:
+      description: Caller is authenticated but not allowed for this operation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    NotFound:
+      description: Resource does not exist or is not visible to the caller.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    Conflict:
+      description: Operation conflicts with the current resource state.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    ValidationError:
+      description: Request payload failed validation.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+    RateLimited:
+      description: Per-key rate limit exceeded. Honour Retry-After (seconds) and the
+        `retry_after` field in the response body.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+security:
+- bearerAuth: []
+servers:
+- url: https://api.continuumtracker.com
+  description: Production
+tags:
+- name: Me
+  description: Current user.
+- name: Project Routes
+  description: Projects you can access.
+- name: Feedback Routes
+  description: Per-project feedbacks.
+- name: Signal Routes
+  description: Per-project signals.
