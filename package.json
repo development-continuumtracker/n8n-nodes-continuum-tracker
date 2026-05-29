@@ -1,6 +1,6 @@
 {
   "name": "@continuumtracker/n8n-nodes-continuum-tracker",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "n8n community node for Continuum Tracker — manage feedbacks, signals and projects via the public API",
   "license": "MIT",
   "homepage": "https://www.continuumtracker.com",
@@ -12,7 +12,10 @@
     "product-management",
     "prioritization"
   ],
-  "author": { "name": "Standa Horvath", "email": "standa@tonakodi.cz" },
+  "author": {
+    "name": "Standa Horvath",
+    "email": "standa@tonakodi.cz"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/development-continuumtracker/n8n-nodes-continuum-tracker.git"
@@ -32,15 +35,21 @@
     "release": "n8n-node release",
     "prepublishOnly": "n8n-node prerelease"
   },
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "publishConfig": {
     "access": "public"
   },
   "n8n": {
     "n8nNodesApiVersion": 1,
     "strict": true,
-    "credentials": ["dist/credentials/ContinuumTrackerApi.credentials.js"],
-    "nodes": ["dist/nodes/ContinuumTracker/ContinuumTracker.node.js"]
+    "credentials": [
+      "dist/credentials/ContinuumTrackerApi.credentials.js"
+    ],
+    "nodes": [
+      "dist/nodes/ContinuumTracker/ContinuumTracker.node.js"
+    ]
   },
   "devDependencies": {
     "@n8n/node-cli": "*",
@@ -49,5 +58,7 @@
     "release-it": "^19.0.4",
     "typescript": "5.9.2"
   },
-  "peerDependencies": { "n8n-workflow": "*" }
+  "peerDependencies": {
+    "n8n-workflow": "*"
+  }
 }
