@@ -1,14 +1,27 @@
 {
-  "name": "n8n-nodes-continuum-tracker",
-  "version": "0.1.0",
+  "name": "@continuumtracker/n8n-nodes-continuum-tracker",
+  "version": "1.0.0",
   "description": "n8n community node for Continuum Tracker — manage feedbacks, signals and projects via the public API",
   "license": "MIT",
-  "homepage": "",
-  "keywords": ["n8n-community-node-package"],
+  "homepage": "https://www.continuumtracker.com",
+  "keywords": [
+    "n8n-community-node-package",
+    "n8n",
+    "continuum-tracker",
+    "feedback",
+    "product-management",
+    "prioritization"
+  ],
   "author": { "name": "Standa Horvath", "email": "standa@tonakodi.cz" },
   "repository": {
     "type": "git",
-    "url": "https://github.com/development-continuumtracker/n8n-nodes-continuum-tracker.git"
+    "url": "git+https://github.com/development-continuumtracker/n8n-nodes-continuum-tracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/development-continuumtracker/n8n-nodes-continuum-tracker/issues"
+  },
+  "engines": {
+    "node": ">=20.15"
   },
   "scripts": {
     "build": "n8n-node build",
@@ -20,6 +33,9 @@
     "prepublishOnly": "n8n-node prerelease"
   },
   "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
   "n8n": {
     "n8nNodesApiVersion": 1,
     "strict": true,

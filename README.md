@@ -1,4 +1,4 @@
-# n8n-nodes-continuum-tracker
+# @continuumtracker/n8n-nodes-continuum-tracker
 
 This is an n8n community node. It lets you interact with the [Continuum Tracker](https://www.continuumtracker.com) public API from your n8n workflows.
 
@@ -22,7 +22,7 @@ Follow the [official installation guide](https://docs.n8n.io/integrations/commun
 
 1. In n8n, go to **Settings → Community nodes**.
 2. Click **Install**.
-3. Enter the package name: `n8n-nodes-continuum-tracker`.
+3. Enter the package name: `@continuumtracker/n8n-nodes-continuum-tracker`.
 4. Agree to the risks of using community nodes and click **Install**.
 
 After the install completes the **Continuum Tracker** node appears in the nodes panel.

@@ -1,5 +1,5 @@
 {
-	"node": "n8n-nodes-continuum-tracker",
+	"node": "@continuumtracker/n8n-nodes-continuum-tracker",
 	"nodeVersion": "1.0",
 	"codexVersion": "1.0",
 	"categories": ["Development", "Developer Tools"],
